@@ -1,0 +1,227 @@
+#MADE BY SANAMDEEP SINGH BHATIA
+#PATH FINDER USING REINFORCEMENT LEARNING(OPENAI-GYM)
+
+!pip install numpy
+!pip install gym
+import numpy as np 
+import gym
+import random
+import time
+import torch
+import matplotlib.pyplot as plt
+from IPython.display import clear_output
+
+#env=gym.make("FrozenLake-v0")
+from gym.envs.registration import register
+register(
+    id='FrozenLakeNotSlippery-v0',
+    entry_point='gym.envs.toy_text:FrozenLakeEnv',
+    kwargs={'map_name' : '4x4', 'is_slippery': False},
+)
+
+env = gym.make('FrozenLakeNotSlippery-v0')
+
+
+action_space_size=env.action_space.n
+state_space_size=env.observation_space.n
+q_table=np.zeros((state_space_size,action_space_size))
+print(q_table)
+
+
+num_episode=10000
+max_steps_per_episode=100
+learning_rate=0.1
+discount_rate=0.99
+exploration_rate=1
+max_exploration_rate=1
+min_exploration_rate=0.01
+exploration_decay_rate=0.001
+total_steps=[]
+total_reward=[]
+
+
+
+reward_all_episode=[]
+for i in range(num_episode):
+    state=env.reset()
+    done=False
+    reward_current_episode=0
+    for step in range(max_steps_per_episode):
+        exploratin_rate_threshold=random.uniform(0,1)
+        if(exploratin_rate_threshold>exploration_rate):
+            action=np.argmax(q_table[state,:])
+        else:
+            action=env.action_space.sample()
+        new_state,reward,done,info=env.step(action)
+        q_table[state,action]=q_table[state,action]*(1-learning_rate)+(learning_rate*(reward+(discount_rate*np.max(q_table[new_state,:]))))
+        state=new_state
+        reward_current_episode+=reward
+        if(done==True):
+            total_reward.append(reward_current_episode)
+            total_steps.append(step)
+            break
+    i+=1
+    exploration_rate = min_exploration_rate + (max_exploration_rate - min_exploration_rate)*np.exp(-exploration_decay_rate*i) 
+    reward_all_episode.append(reward_current_episode)
+
+reward_per_thousand_episode=np.split(np.array(reward_all_episode),num_episode/1000)
+count=1000
+print("Average reward per 1000 episode\n")
+for r in reward_per_thousand_episode:
+    print(count,":",str(sum(r/1000)))
+    count+=1000
+print("****Q Table****\n")
+print(q_table)
+print("\n")
+plt.figure(figsize=(12,5))
+plt.title("Rewards")
+plt.bar(torch.arange(len(total_reward)), total_reward, alpha=0.6, color='green', width=5)
+plt.show()
+print("\n")
+plt.figure(figsize=(12,5))
+plt.title("Steps / Episode length")
+plt.bar(torch.arange(len(total_steps)), total_steps, alpha=0.6, color='red', width=5)
+plt.show()
+
+
+
+total_success=[]
+total_step_here=[]
+total_explore=[]
+fail=0
+success_rate=0
+axis_x=[]
+no_episode=5
+for episode in range(no_episode):
+    state = env.reset()
+    step = 0
+    success=0
+    done = False
+    print("****************************************************")
+    print("EPISODE ", episode+1,"\n\n")
+    time.sleep(1)
+    axis_x.append(episode+1)
+    for step in range(max_steps_per_episode):
+        clear_output(wait=True)
+        env.render()
+        time.sleep(0.3)
+        action = np.argmax(q_table[state,:])
+        
+        new_state, reward, done, info = env.step(action)
+        
+        if done:
+            clear_output(wait=True)
+            env.render()
+            if(reward==1):
+                print("Congratulations!! you have reached your goal")
+                success+=1
+                success_rate+=1
+                total_success.append(1)
+                time.sleep(3)
+            else:
+                print("You failed.")
+                fail-=1
+                total_success.append(0)
+                time.sleep(3)
+            clear_output(wait=True)
+            total_step_here.append(step)
+            total_explore.append(exploration_rate)
+            break
+        state = new_state
+env.close()
+print("success rate(in percentage)= ", (success_rate/no_episode)*100)
+print("\n")
+plt.plot(axis_x,total_success)
+plt.xlabel("Episodes")
+plt.ylabel("Success")
+plt.title("Success vs Episodes")
+plt.show()
+plt.plot(axis_x,total_step_here,color='k',marker='o')
+plt.xlabel("Episodes")
+plt.ylabel("Steps")
+plt.title("Steps vs Episodes")
+plt.show()
+
+
+
+num_episode=1000
+learning_x=[]
+learning_y=[]
+exploration_x=[]
+exploration_y=[]
+t=100
+for i in range (t):
+  learning_rate+=0.1
+  #exploration_rate+=i
+  sum_of_reward=0
+  reward_all_episode=[]
+  for i in range(num_episode):
+      state=env.reset()
+      done=False
+      reward_current_episode=0
+      for step in range(max_steps_per_episode):
+          exploratin_rate_threshold=random.uniform(0,1)
+          if(exploratin_rate_threshold>exploration_rate):
+              action=np.argmax(q_table[state,:])
+          else:
+              action=env.action_space.sample()
+          new_state,reward,done,info=env.step(action)
+          q_table[state,action]=q_table[state,action]*(1-learning_rate)+(learning_rate*(reward+(discount_rate*np.max(q_table[new_state,:]))))
+          state=new_state
+          reward_current_episode+=reward
+          if(done==True):
+              #reward_all_episode.append(reward_current_episode)
+              total_steps.append(step)
+              break
+      i+=1
+      exploration_rate = min_exploration_rate + (max_exploration_rate - min_exploration_rate)*np.exp(-exploration_decay_rate*i) 
+      reward_all_episode.append(reward_current_episode)
+      for i in reward_all_episode:
+        sum_of_reward+=i
+  learning_x.append(learning_rate)
+  learning_y.append(sum_of_reward)
+print("Overshooting Problem\n")
+plt.plot(learning_x,learning_y,color='k',marker='o')
+plt.xlabel("Learning Rate")
+plt.ylabel("Rewards")
+plt.title("Rewards vs Learning Rate")
+plt.show()
+
+
+
+exploration_rate=1
+for i in range (t):
+  exploration_rate+=100
+  exploration_x.append(exploration_rate)
+  sum_of_reward=0
+  reward_all_episode=[]
+  for i in range(num_episode):
+      state=env.reset()
+      done=False
+      reward_current_episode=0
+      for step in range(max_steps_per_episode):
+          exploratin_rate_threshold=random.uniform(0,1)
+          if(exploratin_rate_threshold>exploration_rate):
+              action=np.argmax(q_table[state,:])
+          else:
+              action=env.action_space.sample()
+          new_state,reward,done,info=env.step(action)
+          q_table[state,action]=q_table[state,action]*(1-learning_rate)+(learning_rate*(reward+(discount_rate*np.max(q_table[new_state,:]))))
+          state=new_state
+          reward_current_episode+=reward
+          if(done==True):
+              #reward_all_episode.append(reward_current_episode)
+              total_steps.append(step)
+              break
+      i+=1
+      exploration_rate = min_exploration_rate + (max_exploration_rate - min_exploration_rate)*np.exp(-exploration_decay_rate*i) 
+      reward_all_episode.append(reward_current_episode)
+      for i in reward_all_episode:
+        sum_of_reward+=i
+  exploration_y.append(sum_of_reward)
+plt.plot(exploration_x,exploration_y,color='k',marker='o')
+plt.xlabel("Exploration Rate")
+plt.ylabel("Rewards")
+plt.title("Rewards vs Exploration Rate")
+print("DEPENDENCY OF EXPLORATION RATE \n")
+plt.show()
